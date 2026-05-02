@@ -1,23 +1,51 @@
 export async function GET() {
-  const token = process.env.NAYAX_API_TOKEN;
+  const apiKey = process.env.NAYAX_API_TOKEN;
+  const username = process.env.NAYAX_USERNAME;
+  const password = process.env.NAYAX_PASSWORD;
 
-  if (!token) {
-    return Response.json({ error: "NAYAX_API_TOKEN is not set" }, { status: 500 });
+  // Step 1: sign in
+  const signinRes = await fetch("https://lynx.nayax.com/operational/v1/signin", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ usr: username, pwd: password }),
+  });
+
+  const signinBody = await signinRes.text();
+
+  if (!signinRes.ok) {
+    return Response.json({
+      step: "signin",
+      status: signinRes.status,
+      responseBody: signinBody.substring(0, 500),
+    });
   }
 
-  const res = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
+  // Step 2: use session token to hit devices
+  let sessionToken: string;
+  try {
+    const parsed = JSON.parse(signinBody);
+    sessionToken = parsed.token ?? parsed.accessToken ?? parsed.access_token ?? signinBody;
+  } catch {
+    sessionToken = signinBody;
+  }
+
+  const devicesRes = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${sessionToken}`,
       "Content-Type": "application/json",
     },
   });
 
-  const body = await res.text();
+  const devicesBody = await devicesRes.text();
 
   return Response.json({
-    status: res.status,
-    tokenLength: token.length,
-    tokenPrefix: token.substring(0, 8) + "...",
-    responseBody: body.substring(0, 500),
+    step: "devices",
+    signinStatus: signinRes.status,
+    sessionTokenPrefix: sessionToken.substring(0, 12) + "...",
+    devicesStatus: devicesRes.status,
+    devicesBody: devicesBody.substring(0, 500),
   });
 }
