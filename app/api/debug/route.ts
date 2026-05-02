@@ -31,19 +31,25 @@ export async function GET() {
     return Response.json({ error: "NAYAX_API_TOKEN not set", tokenInfo });
   }
 
-  const devicesRes = await fetch("https://lynx.nayax.com/operational/v1/devices?pageSize=1", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
-  const devicesBody = await devicesRes.text();
+  const endpoints = [
+    "https://lynx.nayax.com/operational/v1/devices?pageSize=1",
+    "https://lynx.nayax.com/operational/v1/machines?pageSize=1",
+    "https://lynx.nayax.com/operational/v1/actors",
+    "https://lynx.nayax.com/operational/v1/users/me",
+    "https://lynx.nayax.com/operational/v1/operators",
+  ];
 
-  return Response.json({
-    tokenInfo,
-    devicesStatus: devicesRes.status,
-    devicesBody: devicesBody.substring(0, 500),
-  });
+  const results = await Promise.all(
+    endpoints.map(async (url) => {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const body = await res.text();
+      return { url: url.split("/v1/")[1], status: res.status, body: body.substring(0, 150) };
+    })
+  );
+
+  return Response.json({ tokenInfo, results });
   } catch (e) {
     return Response.json({ error: String(e) }, { status: 500 });
   }
