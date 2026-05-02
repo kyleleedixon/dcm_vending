@@ -1,4 +1,5 @@
 export async function GET() {
+  try {
   const apiKey = process.env.NAYAX_API_TOKEN;
   const username = process.env.NAYAX_USERNAME;
   const password = process.env.NAYAX_PASSWORD;
@@ -48,4 +49,7 @@ export async function GET() {
     devicesStatus: devicesRes.status,
     devicesBody: devicesBody.substring(0, 500),
   });
+  } catch (e) {
+    return Response.json({ error: String(e) }, { status: 500 });
+  }
 }
