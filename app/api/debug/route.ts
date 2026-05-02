@@ -47,7 +47,7 @@ export async function GET() {
 
   return Response.json({
     step: "devices",
-    signinStatus: signinRes.status,
+    signinUrl: successUrl,
     sessionTokenPrefix: sessionToken.substring(0, 12) + "...",
     devicesStatus: devicesRes.status,
     devicesBody: devicesBody.substring(0, 500),
