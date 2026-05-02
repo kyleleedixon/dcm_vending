@@ -4,11 +4,10 @@ export async function GET() {
   const username = process.env.NAYAX_USERNAME;
   const password = process.env.NAYAX_PASSWORD;
 
-  // Step 1: sign in
+  // Step 1: sign in (no API key header — just credentials)
   const signinRes = await fetch("https://lynx.nayax.com/operational/v1/signin", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ usr: username, pwd: password }),
