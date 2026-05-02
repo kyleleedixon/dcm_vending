@@ -37,7 +37,7 @@ export interface NayaxSale {
 
 export async function getDevices(pageSize = 100): Promise<NayaxDevice[]> {
   const res = await fetch(
-    `${LYNX_BASE}/v1/devices?pageSize=${pageSize}`,
+    `${LYNX_BASE}/api/v1/devices?pageSize=${pageSize}`,
     { headers: getHeaders(), next: { revalidate: 60 } }
   );
   if (!res.ok) throw new Error(`Nayax devices error: ${res.status}`);
