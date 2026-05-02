@@ -31,19 +31,45 @@ export async function GET() {
     return Response.json({ error: "NAYAX_API_TOKEN not set", tokenInfo });
   }
 
-  const res = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
+  // Step 1: exchange identity token for Lynx session token
+  const signinRes = await fetch("https://lynx.nayax.com/operational/v1/signin", {
+    method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
   });
+  const signinBody = await signinRes.text();
+  let signinData: Record<string, unknown> = {};
+  try { signinData = JSON.parse(signinBody); } catch { /* not JSON */ }
 
-  const body = await res.text();
+  if (!signinRes.ok || signinData.ok === false) {
+    return Response.json({
+      tokenInfo,
+      step: "signin_failed",
+      signinStatus: signinRes.status,
+      signinBody: signinBody.substring(0, 500),
+    });
+  }
+
+  // Step 2: use returned session token for devices
+  const sessionToken = (signinData.token ?? signinData.accessToken ?? signinData.access_token ?? signinBody) as string;
+
+  const devicesRes = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
+    headers: {
+      Authorization: `Bearer ${sessionToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const devicesBody = await devicesRes.text();
 
   return Response.json({
     tokenInfo,
-    devicesStatus: res.status,
-    devicesBody: body.substring(0, 500),
+    signinStatus: signinRes.status,
+    signinResponse: signinBody.substring(0, 200),
+    sessionTokenPrefix: sessionToken.substring(0, 12) + "...",
+    devicesStatus: devicesRes.status,
+    devicesBody: devicesBody.substring(0, 500),
   });
   } catch (e) {
     return Response.json({ error: String(e) }, { status: 500 });
