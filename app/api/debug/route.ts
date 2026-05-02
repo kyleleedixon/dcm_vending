@@ -14,23 +14,21 @@ export async function GET() {
   });
 
   const signinBody = await signinRes.text();
+  let signinData: Record<string, unknown> = {};
+  try { signinData = JSON.parse(signinBody); } catch { /* not JSON */ }
 
-  if (!signinRes.ok) {
+  // Nayax returns 200 even for failed logins — check body.ok
+  if (!signinRes.ok || signinData.ok === false) {
     return Response.json({
-      step: "signin",
-      status: signinRes.status,
+      step: "signin_failed",
+      httpStatus: signinRes.status,
       responseBody: signinBody.substring(0, 500),
+      hint: "Check NAYAX_USERNAME and NAYAX_PASSWORD are correct",
     });
   }
 
   // Step 2: use session token to hit devices
-  let sessionToken: string;
-  try {
-    const parsed = JSON.parse(signinBody);
-    sessionToken = parsed.token ?? parsed.accessToken ?? parsed.access_token ?? signinBody;
-  } catch {
-    sessionToken = signinBody;
-  }
+  const sessionToken: string = (signinData.token ?? signinData.accessToken ?? signinData.access_token ?? signinBody) as string;
 
   const devicesRes = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
     headers: {
