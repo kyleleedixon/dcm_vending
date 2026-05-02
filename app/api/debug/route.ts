@@ -4,11 +4,27 @@ export async function GET() {
   // Strip any accidental whitespace/newlines
   const token = rawToken.trim();
 
+  let jwtPayload: Record<string, unknown> = {};
+  if (token.startsWith("eyJ")) {
+    try {
+      const parts = token.split(".");
+      jwtPayload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    } catch { /* ignore */ }
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = jwtPayload.exp as number | undefined;
+
   const tokenInfo = {
     length: token.length,
     prefix: token.substring(0, 10) + "...",
     looksLikeJwt: token.startsWith("eyJ"),
     hasNewlines: rawToken.includes("\n") || rawToken.includes("\r"),
+    issuer: jwtPayload.iss,
+    audience: jwtPayload.aud,
+    subject: jwtPayload.sub,
+    expiry: exp ? new Date(exp * 1000).toISOString() : "none",
+    expired: exp ? exp < now : "no exp claim",
   };
 
   if (!token) {
