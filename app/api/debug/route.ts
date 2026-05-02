@@ -4,26 +4,32 @@ export async function GET() {
   const username = process.env.NAYAX_USERNAME;
   const password = process.env.NAYAX_PASSWORD;
 
-  // Step 1: sign in (no API key header — just credentials)
-  const signinRes = await fetch("https://lynx.nayax.com/operational/v1/signin", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ usr: username, pwd: password }),
-  });
+  // Try both sign-in URL variants
+  const signinUrls = [
+    "https://lynx.nayax.com/operational/v1/signin",
+    "https://lynx.nayax.com/operational/api/v1/signin",
+  ];
 
-  const signinBody = await signinRes.text();
   let signinData: Record<string, unknown> = {};
-  try { signinData = JSON.parse(signinBody); } catch { /* not JSON */ }
+  let signinBody = "";
+  let successUrl = "";
 
-  // Nayax returns 200 even for failed logins — check body.ok
-  if (!signinRes.ok || signinData.ok === false) {
+  for (const url of signinUrls) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usr: username, pwd: password }),
+    });
+    signinBody = await res.text();
+    try { signinData = JSON.parse(signinBody); } catch { signinData = {}; }
+    if (res.ok && signinData.ok !== false) { successUrl = url; break; }
+  }
+
+  if (!successUrl) {
     return Response.json({
       step: "signin_failed",
-      httpStatus: signinRes.status,
+      usernamePrefix: (username ?? "").substring(0, 5) + "...",
       responseBody: signinBody.substring(0, 500),
-      hint: "Check NAYAX_USERNAME and NAYAX_PASSWORD are correct",
     });
   }
 
