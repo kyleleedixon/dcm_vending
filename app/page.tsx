@@ -14,12 +14,10 @@ export default async function DashboardPage() {
   }
 
   const machinesWithSales = await Promise.all(
-    devices
-      .filter((d) => d.machineId)
-      .map(async (device) => ({
-        device,
-        sales: await getMachineLastSales(device.machineId!),
-      }))
+    devices.map(async (device) => ({
+      device,
+      sales: await getMachineLastSales(device.machineId),
+    }))
   );
 
   const onlineCount = devices.filter((d) => d.isConnected).length;

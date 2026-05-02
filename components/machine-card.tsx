@@ -9,7 +9,7 @@ interface MachineCardProps {
 }
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount / 100);
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
 }
 
 function formatDate(iso: string) {
