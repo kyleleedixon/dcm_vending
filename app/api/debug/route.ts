@@ -31,7 +31,7 @@ export async function GET() {
     return Response.json({ error: "NAYAX_API_TOKEN not set", tokenInfo });
   }
 
-  const devicesRes = await fetch("https://lynx.nayax.com/operational/api/v1/devices?pageSize=1", {
+  const devicesRes = await fetch("https://lynx.nayax.com/operational/v1/devices?pageSize=1", {
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
