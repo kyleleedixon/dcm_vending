@@ -1,4 +1,4 @@
-const LYNX_BASE = "https://lynx.nayax.com/operational/api/v1";
+const LYNX_BASE = "https://lynx.nayax.com/operational/v1";
 
 function getHeaders() {
   const token = process.env.NAYAX_API_TOKEN?.trim();

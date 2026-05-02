@@ -31,11 +31,9 @@ export async function GET() {
     };
 
     const endpoints = [
-      "https://lynx.nayax.com/operational/api/v1/machines?ResultsLimit=1",
       "https://lynx.nayax.com/operational/v1/machines?ResultsLimit=1",
-      "https://qa-lynx.nayax.com/operational/v1/machines?ResultsLimit=1",
-      "https://lynx.nayax.com/operational/api/v1/devices?pageSize=1",
       "https://lynx.nayax.com/operational/v1/devices?pageSize=1",
+      "https://lynx.nayax.com/operational/v1/actors",
     ];
 
     const results = await Promise.all(
