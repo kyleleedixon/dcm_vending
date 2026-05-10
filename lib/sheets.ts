@@ -8,7 +8,7 @@ export interface InventoryAlert {
   level: AlertLevel;
   reason: string;
   detail?: string;
-  inventory: number;
+  inventory: number | null;
   par: number;
   store: string;
 }
@@ -16,7 +16,7 @@ export interface InventoryAlert {
 interface ParsedItem {
   item: string;
   category: "drinks" | "snacks";
-  inventory: number;
+  inventory: number | null;
   par: number;
   expiry: Date | null;
   daysToExpiry: number | null;
@@ -73,10 +73,12 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
     const item = row[itemCol]?.trim();
     if (!item) return [];
     const expiry = parseDate(row[expiryCol]?.trim() ?? "");
+    const invRaw = row[invCol]?.trim();
+    const inventory = invRaw ? parseInt(invRaw, 10) || 0 : null;
     return [{
       item,
       category,
-      inventory: parseInt(row[invCol] ?? "0", 10) || 0,
+      inventory,
       par: parseInt(row[parCol] ?? "0", 10) || 0,
       expiry,
       daysToExpiry: expiry ? daysFromNow(expiry) : null,
@@ -93,7 +95,7 @@ function buildAlerts(items: ParsedItem[], dailyRate: number): InventoryAlert[] {
   const alerts: InventoryAlert[] = [];
 
   for (const item of items) {
-    const daysUntilEmpty = ratePerItem > 0
+    const daysUntilEmpty = ratePerItem > 0 && item.inventory !== null
       ? Math.round(item.inventory / ratePerItem)
       : null;
     const { daysToExpiry } = item;
@@ -104,7 +106,7 @@ function buildAlerts(items: ParsedItem[], dailyRate: number): InventoryAlert[] {
       continue;
     }
 
-    // Out of stock
+    // Out of stock (only when explicitly 0, not blank)
     if (item.inventory === 0) {
       alerts.push({ ...item, level: "critical", reason: "Out of stock" });
       continue;
@@ -153,7 +155,7 @@ function buildAlerts(items: ParsedItem[], dailyRate: number): InventoryAlert[] {
     }
 
     // Below par fallback (when no projection data available)
-    if (!daysUntilEmpty && item.par > 0 && item.inventory < item.par) {
+    if (!daysUntilEmpty && item.inventory !== null && item.par > 0 && item.inventory < item.par) {
       alerts.push({
         ...item,
         level: item.inventory < item.par * 0.5 ? "critical" : "warning",

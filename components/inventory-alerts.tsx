@@ -88,7 +88,7 @@ export function InventoryAlerts({ alerts, sheetError }: InventoryAlertsProps) {
                 )}
               </div>
               <span className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${styles.badge}`}>
-                {alert.inventory} / {alert.par} par
+                {alert.inventory ?? "?"} / {alert.par} par
               </span>
             </div>
           );
