@@ -25,7 +25,7 @@ export default async function DashboardPage() {
   try {
     inventoryAlerts = await getInventoryAlerts();
   } catch {
-    // API key not yet configured — silently skip
+    // Sheet not yet shared publicly — silently skip
   }
 
   const machineData = await Promise.all(

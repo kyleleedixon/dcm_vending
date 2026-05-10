@@ -24,14 +24,26 @@ export interface InventoryAlert {
 }
 
 async function fetchSheetValues(sheetName: string): Promise<string[][]> {
-  const apiKey = process.env.GOOGLE_SHEETS_API_KEY;
-  if (!apiKey) throw new Error("GOOGLE_SHEETS_API_KEY is not set");
-
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${apiKey}`;
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url, { next: { revalidate: 300 } });
-  if (!res.ok) throw new Error(`Sheets API error: ${res.status}`);
-  const data = await res.json();
-  return (data.values ?? []) as string[][];
+  if (!res.ok) throw new Error(`Sheets fetch error: ${res.status}`);
+  const csv = await res.text();
+  return parseCsv(csv);
+}
+
+function parseCsv(csv: string): string[][] {
+  return csv.split("\n").map((line) => {
+    const cols: string[] = [];
+    let cur = "";
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; }
+      else if (ch === "," && !inQuotes) { cols.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  }).filter((row) => row.some((c) => c !== ""));
 }
 
 function parseExpiry(raw: string): Date | null {
