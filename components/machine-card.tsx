@@ -63,21 +63,21 @@ export function MachineCard({ device, sales }: MachineCardProps) {
         {sales.length > 0 && (
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-2">Recent Sales</p>
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Time</TableHead>
-                  <TableHead className="text-xs">Product</TableHead>
-                  <TableHead className="text-xs">Method</TableHead>
-                  <TableHead className="text-xs text-right">Amount</TableHead>
+                  <TableHead className="text-xs w-[30%]">Time</TableHead>
+                  <TableHead className="text-xs w-[30%]">Product</TableHead>
+                  <TableHead className="text-xs w-[20%]">Method</TableHead>
+                  <TableHead className="text-xs w-[20%] text-right">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sales.slice(0, 5).map((sale) => (
                   <TableRow key={sale.transactionId}>
-                    <TableCell className="text-xs">{formatDate(sale.authorizedAt)}</TableCell>
-                    <TableCell className="text-xs">{sale.productName ?? "—"}</TableCell>
-                    <TableCell className="text-xs">{sale.paymentMethod ?? "—"}</TableCell>
+                    <TableCell className="text-xs whitespace-normal">{formatDate(sale.authorizedAt)}</TableCell>
+                    <TableCell className="text-xs whitespace-normal">{sale.productName ?? "—"}</TableCell>
+                    <TableCell className="text-xs whitespace-normal">{sale.paymentMethod ?? "—"}</TableCell>
                     <TableCell className="text-xs text-right">
                       {formatCurrency(sale.settledAmount || sale.authorizedAmount, sale.currencyCode)}
                     </TableCell>
