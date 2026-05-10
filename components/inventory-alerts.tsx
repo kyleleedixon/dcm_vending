@@ -71,6 +71,9 @@ export function InventoryAlerts({ alerts }: InventoryAlertsProps) {
                   )}
                 </div>
                 <p className={`text-xs mt-0.5 font-medium ${styles.icon}`}>{alert.reason}</p>
+                {alert.detail && (
+                  <p className="text-xs text-muted-foreground">{alert.detail}</p>
+                )}
               </div>
               <span className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${styles.badge}`}>
                 {alert.inventory} / {alert.par} par

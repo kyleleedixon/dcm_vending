@@ -3,7 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { GlassWater, Cookie } from "lucide-react";
 import { NayaxDevice, NayaxSale } from "@/lib/nayax";
+
+function MachineIcon({ name }: { name: string }) {
+  if (/\b13\b/.test(name)) return <GlassWater className="h-4 w-4 text-blue-400 shrink-0" />;
+  if (/\b14\b/.test(name)) return <Cookie className="h-4 w-4 text-amber-400 shrink-0" />;
+  return null;
+}
 
 interface MachineCardProps {
   device: NayaxDevice;
@@ -31,7 +38,8 @@ export function MachineCard({ device, sales }: MachineCardProps) {
     <Card>
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
         <div>
-          <CardTitle className="text-base font-semibold">
+          <CardTitle className="text-base font-semibold flex items-center gap-1.5">
+            <MachineIcon name={device.machineName ?? ""} />
             {device.machineName ?? `Machine ${device.machineId ?? device.deviceId}`}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">

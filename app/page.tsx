@@ -1,4 +1,4 @@
-import { getDevices, getMachineLastSales } from "@/lib/nayax";
+import { getDevices, getMachineLastSales, NayaxSale } from "@/lib/nayax";
 import { getInventoryAlerts, InventoryAlert } from "@/lib/sheets";
 import { MachineCard } from "@/components/machine-card";
 import { StatsBar } from "@/components/stats-bar";
@@ -7,8 +7,18 @@ import { InventoryAlerts } from "@/components/inventory-alerts";
 
 export const revalidate = 60;
 
-function isToday(iso: string) {
-  return new Date(iso).toDateString() === new Date().toDateString();
+function machineCategory(name: string): "drinks" | "snacks" | null {
+  if (/\b13\b/.test(name)) return "drinks";
+  if (/\b14\b/.test(name)) return "snacks";
+  return null;
+}
+
+function calcDailyRate(sales: NayaxSale[]): number {
+  if (sales.length === 0) return 0;
+  if (sales.length === 1) return 1;
+  const times = sales.map((s) => new Date(s.authorizedAt).getTime());
+  const daySpan = Math.max(1, (Math.max(...times) - Math.min(...times)) / 86400000);
+  return sales.length / daySpan;
 }
 
 export default async function DashboardPage() {
@@ -21,13 +31,6 @@ export default async function DashboardPage() {
     error = e instanceof Error ? e.message : "Failed to load machines";
   }
 
-  let inventoryAlerts: InventoryAlert[] = [];
-  try {
-    inventoryAlerts = await getInventoryAlerts();
-  } catch {
-    // Sheet not yet shared publicly — silently skip
-  }
-
   const machineData = await Promise.all(
     devices.map(async (device) => ({
       device,
@@ -35,11 +38,24 @@ export default async function DashboardPage() {
     }))
   );
 
+  // Calculate daily transaction rates per machine category for projection
+  const dailyRates = { drinks: 0, snacks: 0 };
+  for (const { device, sales } of machineData) {
+    const cat = machineCategory(device.machineName);
+    if (cat) dailyRates[cat] = calcDailyRate(sales);
+  }
+
+  let inventoryAlerts: InventoryAlert[] = [];
+  try {
+    inventoryAlerts = await getInventoryAlerts(dailyRates);
+  } catch {
+    // Sheet not yet shared publicly — silently skip
+  }
+
   const allSales = machineData.flatMap((m) => m.sales);
   const currencyCode = allSales.find((s) => s.currencyCode)?.currencyCode ?? "USD";
   const onlineCount = devices.filter((d) => d.isConnected).length;
 
-  // Group all sales by calendar day, sorted chronologically
   const revenueByDay: RevenueDayData[] = (() => {
     const map = new Map<string, { revenue: number; transactions: number; ts: number }>();
     for (const sale of allSales) {
