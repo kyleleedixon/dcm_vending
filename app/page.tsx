@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getDevices, getMachineLastSales, getMachineProducts, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
 
 function calcDailyRate(sales: NayaxSale[]): number {
@@ -89,9 +90,14 @@ export default async function DashboardPage() {
             <h1 className="text-xl font-bold tracking-tight">DCM Vending</h1>
             <p className="text-sm text-muted-foreground">Machine Dashboard</p>
           </div>
-          <div className="text-right text-sm text-muted-foreground">
-            <p>{onlineCount} / {devices.length} online</p>
-            <p>Refreshes every 60s</p>
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <Link href="/prices" className="hover:text-foreground transition-colors font-medium">
+              Price Comparison
+            </Link>
+            <div className="text-right">
+              <p>{onlineCount} / {devices.length} online</p>
+              <p>Refreshes every 60s</p>
+            </div>
           </div>
         </div>
       </header>

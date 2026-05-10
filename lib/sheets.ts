@@ -206,6 +206,60 @@ function buildAlerts(
   );
 }
 
+export interface PricingItem {
+  item: string;
+  category: "drinks" | "snacks";
+  currentStore: string;
+  size: string;
+  packSize: number | null;
+  currentPrice: number | null;
+  costPerVend: number | null;
+}
+
+function parseCurrency(raw: string): number | null {
+  const n = parseFloat(raw.replace(/[$,]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+function parsePricingRows(rows: string[][], category: "drinks" | "snacks"): PricingItem[] {
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((h) => h.trim().toLowerCase());
+  const idx = (name: string) => headers.findIndex((h) => h.includes(name));
+
+  const itemCol = idx("item");
+  const storeCol = idx("store");
+  const sizeCol = idx("size");
+  const priceCol = idx("price");
+  // "pack size" must match before bare "size" — find exact match first
+  const packSizeCol = headers.findIndex((h) => h === "pack size" || h === "pack_size");
+  const costPerVendCol = headers.findIndex((h) => h.includes("cost") && h.includes("vend"));
+
+  return rows.slice(1).flatMap((row) => {
+    const item = row[itemCol]?.trim();
+    if (!item) return [];
+    return [{
+      item,
+      category,
+      currentStore: row[storeCol]?.trim() ?? "",
+      size: row[sizeCol]?.trim() ?? "",
+      packSize: packSizeCol >= 0 ? (parseInt(row[packSizeCol] ?? "", 10) || null) : null,
+      currentPrice: priceCol >= 0 ? parseCurrency(row[priceCol] ?? "") : null,
+      costPerVend: costPerVendCol >= 0 ? parseCurrency(row[costPerVendCol] ?? "") : null,
+    }];
+  });
+}
+
+export async function getPricingItems(): Promise<PricingItem[]> {
+  const [drinkRows, snackRows] = await Promise.all([
+    fetchCsv("Drinks"),
+    fetchCsv("Snacks"),
+  ]);
+  return [
+    ...parsePricingRows(drinkRows, "drinks"),
+    ...parsePricingRows(snackRows, "snacks"),
+  ];
+}
+
 export async function getInventoryAlerts(
   machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] },
   dailyRates: { drinks: number; snacks: number }
