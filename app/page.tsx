@@ -6,6 +6,7 @@ import { RevenueChart, RevenueDayData } from "@/components/revenue-chart";
 import { InventoryAlerts } from "@/components/inventory-alerts";
 
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 function machineCategory(name: string): "drinks" | "snacks" | null {
   if (/\b13\b/.test(name)) return "drinks";
