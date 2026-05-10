@@ -24,15 +24,30 @@ interface RawMachine {
 interface RawSale {
   TransactionID: number;
   MachineID: number;
+  MachineName?: string;
   AuthorizationValue: number;
   SettlementValue: number;
   CurrencyCode: string;
   PaymentMethod: string;
+  RecognitionMethod?: string;
   CardBrand?: string;
   ProductName?: string;
   Quantity?: number;
   AuthorizationDateTimeGMT: string;
   SettlementDateTimeGMT?: string;
+  InstituteLocationName?: string;
+}
+
+interface RawAlert {
+  EventLogID: number;
+  MachineID?: number;
+  EventCode: number;
+  EventGroupName?: string;
+  EventGroupId?: number;
+  EntityTypeName?: string;
+  EventSourceName?: string;
+  EventDateTimeGMT: string;
+  TransactionID?: number;
 }
 
 export interface NayaxDevice {
@@ -48,15 +63,28 @@ export interface NayaxDevice {
 export interface NayaxSale {
   transactionId: string;
   machineId: number;
+  machineName?: string;
   authorizedAmount: number;
   settledAmount: number;
   currencyCode: string;
   paymentMethod: string;
+  recognitionMethod?: string;
   cardBrand?: string;
   productName?: string;
   quantity?: number;
   authorizedAt: string;
   settledAt?: string;
+  locationName?: string;
+}
+
+export interface NayaxAlert {
+  eventLogId: number;
+  machineId?: number;
+  eventCode: number;
+  eventGroupName?: string;
+  entityTypeName?: string;
+  eventSourceName?: string;
+  eventDateTimeGMT: string;
 }
 
 function mapMachine(m: RawMachine): NayaxDevice {
@@ -75,15 +103,30 @@ function mapSale(s: RawSale): NayaxSale {
   return {
     transactionId: String(s.TransactionID),
     machineId: s.MachineID,
+    machineName: s.MachineName,
     authorizedAmount: s.AuthorizationValue,
     settledAmount: s.SettlementValue,
     currencyCode: s.CurrencyCode,
     paymentMethod: s.PaymentMethod,
+    recognitionMethod: s.RecognitionMethod,
     cardBrand: s.CardBrand,
     productName: s.ProductName,
     quantity: s.Quantity,
     authorizedAt: s.AuthorizationDateTimeGMT,
     settledAt: s.SettlementDateTimeGMT,
+    locationName: s.InstituteLocationName,
+  };
+}
+
+function mapAlert(a: RawAlert): NayaxAlert {
+  return {
+    eventLogId: a.EventLogID,
+    machineId: a.MachineID,
+    eventCode: a.EventCode,
+    eventGroupName: a.EventGroupName,
+    entityTypeName: a.EntityTypeName,
+    eventSourceName: a.EventSourceName,
+    eventDateTimeGMT: a.EventDateTimeGMT,
   };
 }
 
@@ -107,4 +150,15 @@ export async function getMachineLastSales(machineId: number): Promise<NayaxSale[
   const data = await res.json();
   const items: RawSale[] = Array.isArray(data) ? data : [];
   return items.map(mapSale);
+}
+
+export async function getMachineAlerts(machineId: number): Promise<NayaxAlert[]> {
+  const res = await fetch(
+    `${LYNX_BASE}/machines/${machineId}/lastAlerts`,
+    { headers: getHeaders(), next: { revalidate: 60 } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  const items: RawAlert[] = Array.isArray(data) ? data : [];
+  return items.map(mapAlert);
 }
