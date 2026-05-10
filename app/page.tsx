@@ -1,4 +1,12 @@
 import { getDevices, getMachineLastSales, getMachineProducts, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
+
+function calcDailyRate(sales: NayaxSale[]): number {
+  if (sales.length === 0) return 0;
+  if (sales.length === 1) return 1;
+  const times = sales.map((s) => new Date(s.authorizedAt).getTime());
+  const daySpan = Math.max(1, (Math.max(...times) - Math.min(...times)) / 86400000);
+  return sales.length / daySpan;
+}
 import { getInventoryAlerts, InventoryAlert } from "@/lib/sheets";
 import { MachineCard } from "@/components/machine-card";
 import { StatsBar } from "@/components/stats-bar";
@@ -33,17 +41,21 @@ export default async function DashboardPage() {
     }))
   );
 
-  // Group machine products by category
+  // Group machine products and daily sales rates by category
   const machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] } = { drinks: [], snacks: [] };
-  for (const { device, products } of machineData) {
+  const dailyRates = { drinks: 0, snacks: 0 };
+  for (const { device, products, sales } of machineData) {
     const cat = machineCategory(device.machineName);
-    if (cat) machineProducts[cat] = products;
+    if (cat) {
+      machineProducts[cat] = products;
+      dailyRates[cat] = calcDailyRate(sales);
+    }
   }
 
   let inventoryAlerts: InventoryAlert[] = [];
   let sheetError = false;
   try {
-    inventoryAlerts = await getInventoryAlerts(machineProducts);
+    inventoryAlerts = await getInventoryAlerts(machineProducts, dailyRates);
   } catch {
     sheetError = true;
   }

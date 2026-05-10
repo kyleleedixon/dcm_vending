@@ -107,8 +107,10 @@ function buildMachineProductMap(products: NayaxMachineProduct[]): Map<string, Na
 
 function buildAlerts(
   items: ParsedItem[],
-  machineProductMap: Map<string, NayaxMachineProduct>
+  machineProductMap: Map<string, NayaxMachineProduct>,
+  dailyRate: number
 ): InventoryAlert[] {
+  const ratePerItem = items.length > 0 && dailyRate > 0 ? dailyRate / items.length : 0;
   const alerts: InventoryAlert[] = [];
 
   for (const item of items) {
@@ -117,6 +119,10 @@ function buildAlerts(
     const machinePar = machineProduct?.machinePar ?? null;
     const isVendedOut = machineProduct?.isVendedOut ?? false;
     const { daysToExpiry, extraStock, extraStockPar } = item;
+
+    const daysUntilEmpty = ratePerItem > 0 && machineInventory !== null
+      ? Math.round(machineInventory / ratePerItem)
+      : null;
 
     const base = {
       item: item.item,
@@ -172,19 +178,25 @@ function buildAlerts(
       continue;
     }
 
-    // No extra stock to restock with
-    if (extraStock === 0) {
-      alerts.push({ ...base, level: "warning", reason: "No extra stock — order now" });
-      continue;
-    }
-
-    // Extra stock below par
-    if (extraStock !== null && extraStockPar !== null && extraStockPar > 0 && extraStock < extraStockPar) {
-      alerts.push({
-        ...base,
-        level: extraStock < extraStockPar * 0.5 ? "critical" : "warning",
-        reason: `Low extra stock — ${extraStock} of ${extraStockPar} par`,
-      });
+    // Only alert on extra stock if machine is projected to run out within 14 days
+    if (daysUntilEmpty !== null && daysUntilEmpty <= 14) {
+      if (extraStock === 0) {
+        alerts.push({
+          ...base,
+          level: "critical",
+          reason: `Order now — machine empty in ~${daysUntilEmpty}d, no extra stock`,
+        });
+        continue;
+      }
+      if (extraStock !== null && extraStockPar !== null && extraStockPar > 0 && extraStock < extraStockPar) {
+        alerts.push({
+          ...base,
+          level: "warning",
+          reason: `Low extra stock — machine empty in ~${daysUntilEmpty}d`,
+          detail: `${extraStock} of ${extraStockPar} par in extra stock`,
+        });
+        continue;
+      }
     }
   }
 
@@ -195,7 +207,8 @@ function buildAlerts(
 }
 
 export async function getInventoryAlerts(
-  machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] }
+  machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] },
+  dailyRates: { drinks: number; snacks: number }
 ): Promise<InventoryAlert[]> {
   const [drinkRows, snackRows] = await Promise.all([
     fetchCsv("Drinks"),
@@ -209,8 +222,8 @@ export async function getInventoryAlerts(
   const snackMap = buildMachineProductMap(machineProducts.snacks);
 
   return [
-    ...buildAlerts(drinks, drinkMap),
-    ...buildAlerts(snacks, snackMap),
+    ...buildAlerts(drinks, drinkMap, dailyRates.drinks),
+    ...buildAlerts(snacks, snackMap, dailyRates.snacks),
   ].sort((a, b) =>
     (a.level === "critical" ? 0 : 1) - (b.level === "critical" ? 0 : 1)
   );
