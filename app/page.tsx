@@ -46,10 +46,11 @@ export default async function DashboardPage() {
   }
 
   let inventoryAlerts: InventoryAlert[] = [];
+  let sheetError = false;
   try {
     inventoryAlerts = await getInventoryAlerts(dailyRates);
   } catch {
-    // Sheet not yet shared publicly — silently skip
+    sheetError = true;
   }
 
   const allSales = machineData.flatMap((m) => m.sales);
@@ -104,7 +105,7 @@ export default async function DashboardPage() {
               currencyCode={currencyCode}
             />
 
-            <InventoryAlerts alerts={inventoryAlerts} />
+            <InventoryAlerts alerts={inventoryAlerts} sheetError={sheetError} />
 
             <div className="rounded-lg border bg-card p-4 mb-8">
               <h2 className="text-sm font-semibold mb-4">Revenue Over Time</h2>

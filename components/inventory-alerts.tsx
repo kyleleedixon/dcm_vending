@@ -3,6 +3,7 @@ import { AlertTriangle, ShoppingCart, Clock } from "lucide-react";
 
 interface InventoryAlertsProps {
   alerts: InventoryAlert[];
+  sheetError?: boolean;
 }
 
 const levelStyles = {
@@ -30,8 +31,19 @@ function AlertIcon({ reason }: { reason: string }) {
   return <AlertTriangle className={cls} />;
 }
 
-export function InventoryAlerts({ alerts }: InventoryAlertsProps) {
-  if (alerts.length === 0) return null;
+export function InventoryAlerts({ alerts, sheetError }: InventoryAlertsProps) {
+  if (sheetError || alerts.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card mb-8 px-4 py-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Inventory Alerts</h2>
+        <span className="text-xs text-muted-foreground">
+          {sheetError
+            ? "⚠ Stock List sheet is not publicly shared — open it and set to Anyone with link → Viewer"
+            : "All good — no alerts right now"}
+        </span>
+      </div>
+    );
+  }
 
   const critical = alerts.filter((a) => a.level === "critical");
   const warning = alerts.filter((a) => a.level === "warning");
