@@ -35,7 +35,9 @@ export default async function DashboardPage() {
     const map = new Map<string, { revenue: number; transactions: number; ts: number }>();
     for (const sale of allSales) {
       const d = new Date(sale.authorizedAt);
-      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const weekday = d.toLocaleDateString("en-US", { weekday: "short" });
+      const monthDay = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+      const key = `${weekday} ${monthDay}`;
       const existing = map.get(key) ?? { revenue: 0, transactions: 0, ts: d.setHours(0, 0, 0, 0) };
       existing.revenue += sale.settledAmount || sale.authorizedAmount;
       existing.transactions += 1;
