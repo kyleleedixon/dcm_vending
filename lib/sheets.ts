@@ -1,3 +1,5 @@
+import { NayaxMachineProduct } from "@/lib/nayax";
+
 const SHEET_ID = "1Rmyu2g1DoCt2IlX9fYrQzOHVXz0ZAn3_2YdTIkMW5hg";
 
 export type AlertLevel = "critical" | "warning";
@@ -8,16 +10,20 @@ export interface InventoryAlert {
   level: AlertLevel;
   reason: string;
   detail?: string;
-  inventory: number | null;
-  par: number;
+  // Machine inventory from Nayax (what's physically in the machine)
+  machineInventory: number | null;
+  machinePar: number | null;
+  // Extra stock from sheet (backup supply for restocking)
+  extraStock: number | null;
+  extraStockPar: number | null;
   store: string;
 }
 
 interface ParsedItem {
   item: string;
   category: "drinks" | "snacks";
-  inventory: number | null;
-  par: number;
+  extraStock: number | null;
+  extraStockPar: number | null;
   expiry: Date | null;
   daysToExpiry: number | null;
   store: string;
@@ -74,12 +80,12 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
     if (!item) return [];
     const expiry = parseDate(row[expiryCol]?.trim() ?? "");
     const invRaw = row[invCol]?.trim();
-    const inventory = invRaw ? parseInt(invRaw, 10) || 0 : null;
+    const extraStock = invRaw ? parseInt(invRaw, 10) || 0 : null;
     return [{
       item,
       category,
-      inventory,
-      par: parseInt(row[parCol] ?? "0", 10) || 0,
+      extraStock,
+      extraStockPar: parseInt(row[parCol] ?? "0", 10) || 0,
       expiry,
       daysToExpiry: expiry ? daysFromNow(expiry) : null,
       store: row[storeCol]?.trim() ?? "",
@@ -87,79 +93,97 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
   });
 }
 
-function buildAlerts(items: ParsedItem[], dailyRate: number): InventoryAlert[] {
-  const ratePerItem = items.length > 0 && dailyRate > 0
-    ? dailyRate / items.length
-    : 0;
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
+function buildMachineProductMap(products: NayaxMachineProduct[]): Map<string, NayaxMachineProduct> {
+  const map = new Map<string, NayaxMachineProduct>();
+  for (const p of products) {
+    map.set(normalizeName(p.productName), p);
+  }
+  return map;
+}
+
+function buildAlerts(
+  items: ParsedItem[],
+  machineProductMap: Map<string, NayaxMachineProduct>
+): InventoryAlert[] {
   const alerts: InventoryAlert[] = [];
 
   for (const item of items) {
-    const daysUntilEmpty = ratePerItem > 0 && item.inventory !== null
-      ? Math.round(item.inventory / ratePerItem)
-      : null;
-    const { daysToExpiry } = item;
+    const machineProduct = machineProductMap.get(normalizeName(item.item));
+    const machineInventory = machineProduct?.machineInventory ?? null;
+    const machinePar = machineProduct?.machinePar ?? null;
+    const isVendedOut = machineProduct?.isVendedOut ?? false;
+    const { daysToExpiry, extraStock, extraStockPar } = item;
+
+    const base = {
+      item: item.item,
+      category: item.category,
+      store: item.store,
+      machineInventory,
+      machinePar,
+      extraStock,
+      extraStockPar,
+    };
 
     // Already expired
     if (daysToExpiry !== null && daysToExpiry < 0) {
-      alerts.push({ ...item, level: "critical", reason: "Expired — remove from machine" });
+      alerts.push({ ...base, level: "critical", reason: "Expired — remove from machine" });
       continue;
     }
 
-    // Out of stock (only when explicitly 0, not blank)
-    if (item.inventory === 0) {
-      alerts.push({ ...item, level: "critical", reason: "Out of stock" });
+    // Machine slot vended out (empty in machine)
+    if (isVendedOut || machineInventory === 0) {
+      alerts.push({ ...base, level: "critical", reason: "Out of stock in machine" });
       continue;
     }
 
-    // Will expire before selling through
-    if (daysToExpiry !== null && daysUntilEmpty !== null && daysToExpiry < daysUntilEmpty) {
-      alerts.push({
-        ...item,
-        level: daysToExpiry <= 7 ? "critical" : "warning",
-        reason: `Expires in ${daysToExpiry}d — won't sell through`,
-        detail: `Projects empty in ${daysUntilEmpty}d`,
-      });
-      continue;
+    // Machine running low (below vend-out threshold, or below 25% of par)
+    if (machineInventory !== null && machinePar !== null && machinePar > 0) {
+      const threshold = machineProduct?.vendOutThreshold ?? Math.ceil(machinePar * 0.25);
+      if (machineInventory <= threshold) {
+        alerts.push({
+          ...base,
+          level: machineInventory <= (machineProduct?.vendOutThreshold ?? 1) ? "critical" : "warning",
+          reason: `Low in machine — ${machineInventory} of ${machinePar}`,
+          detail: extraStock !== null ? `${extraStock} extra in stock` : undefined,
+        });
+        continue;
+      }
     }
 
-    // Will run out soon (projection-based order alert)
-    if (daysUntilEmpty !== null && daysUntilEmpty <= 14) {
-      alerts.push({
-        ...item,
-        level: daysUntilEmpty <= 7 ? "critical" : "warning",
-        reason: `Order now — projects empty in ${daysUntilEmpty} day${daysUntilEmpty !== 1 ? "s" : ""}`,
-        detail: daysToExpiry !== null ? `Expires in ${daysToExpiry}d` : undefined,
-      });
-      continue;
-    }
-
-    // Expiring soon (will sell through in time, but worth flagging)
+    // Expiring soon
     if (daysToExpiry !== null && daysToExpiry <= 7) {
       alerts.push({
-        ...item,
+        ...base,
         level: "critical",
         reason: `Expires in ${daysToExpiry} day${daysToExpiry !== 1 ? "s" : ""}`,
-        detail: daysUntilEmpty !== null ? `Projects empty in ${daysUntilEmpty}d` : undefined,
       });
       continue;
     }
     if (daysToExpiry !== null && daysToExpiry <= 30) {
       alerts.push({
-        ...item,
+        ...base,
         level: "warning",
         reason: `Expires in ${daysToExpiry} days`,
-        detail: daysUntilEmpty !== null ? `Projects empty in ${daysUntilEmpty}d` : undefined,
       });
       continue;
     }
 
-    // Below par fallback (when no projection data available)
-    if (!daysUntilEmpty && item.inventory !== null && item.par > 0 && item.inventory < item.par) {
+    // No extra stock to restock with
+    if (extraStock === 0) {
+      alerts.push({ ...base, level: "warning", reason: "No extra stock — order now" });
+      continue;
+    }
+
+    // Extra stock below par
+    if (extraStock !== null && extraStockPar !== null && extraStockPar > 0 && extraStock < extraStockPar) {
       alerts.push({
-        ...item,
-        level: item.inventory < item.par * 0.5 ? "critical" : "warning",
-        reason: `Low stock — ${item.inventory} of ${item.par} par`,
+        ...base,
+        level: extraStock < extraStockPar * 0.5 ? "critical" : "warning",
+        reason: `Low extra stock — ${extraStock} of ${extraStockPar} par`,
       });
     }
   }
@@ -171,7 +195,7 @@ function buildAlerts(items: ParsedItem[], dailyRate: number): InventoryAlert[] {
 }
 
 export async function getInventoryAlerts(
-  dailyRates: { drinks: number; snacks: number }
+  machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] }
 ): Promise<InventoryAlert[]> {
   const [drinkRows, snackRows] = await Promise.all([
     fetchCsv("Drinks"),
@@ -181,9 +205,12 @@ export async function getInventoryAlerts(
   const drinks = parseItems(drinkRows, "drinks");
   const snacks = parseItems(snackRows, "snacks");
 
+  const drinkMap = buildMachineProductMap(machineProducts.drinks);
+  const snackMap = buildMachineProductMap(machineProducts.snacks);
+
   return [
-    ...buildAlerts(drinks, dailyRates.drinks),
-    ...buildAlerts(snacks, dailyRates.snacks),
+    ...buildAlerts(drinks, drinkMap),
+    ...buildAlerts(snacks, snackMap),
   ].sort((a, b) =>
     (a.level === "critical" ? 0 : 1) - (b.level === "critical" ? 0 : 1)
   );

@@ -38,6 +38,26 @@ interface RawSale {
   InstituteLocationName?: string;
 }
 
+interface RawMachineProduct {
+  MachineProductID?: number;
+  MachineID?: number;
+  DEXProductName?: string | null;
+  PAR?: number | null;
+  MissingStockByDEX?: number | null;
+  MissingStockByMDB?: number | null;
+  SelectionVendOutBit?: boolean | null;
+  VendOutAlertThreshold?: number | null;
+}
+
+export interface NayaxMachineProduct {
+  machineProductId: number;
+  productName: string;
+  machinePar: number | null;
+  machineInventory: number | null;
+  isVendedOut: boolean;
+  vendOutThreshold: number | null;
+}
+
 interface RawAlert {
   EventLogID: number;
   MachineID?: number;
@@ -161,4 +181,29 @@ export async function getMachineAlerts(machineId: number): Promise<NayaxAlert[]>
   const data = await res.json();
   const items: RawAlert[] = Array.isArray(data) ? data : [];
   return items.map(mapAlert);
+}
+
+export async function getMachineProducts(machineId: number): Promise<NayaxMachineProduct[]> {
+  const res = await fetch(
+    `${LYNX_BASE}/machines/${machineId}/machineProducts`,
+    { headers: getHeaders(), next: { revalidate: 300 } }
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  const items: RawMachineProduct[] = Array.isArray(data) ? data : [];
+  return items
+    .filter((p) => p.DEXProductName)
+    .map((p) => {
+      const par = p.PAR ?? null;
+      const missing = p.MissingStockByDEX ?? p.MissingStockByMDB ?? null;
+      const machineInventory = par !== null && missing !== null ? par - missing : null;
+      return {
+        machineProductId: p.MachineProductID ?? 0,
+        productName: p.DEXProductName!,
+        machinePar: par,
+        machineInventory,
+        isVendedOut: p.SelectionVendOutBit ?? false,
+        vendOutThreshold: p.VendOutAlertThreshold ?? null,
+      };
+    });
 }

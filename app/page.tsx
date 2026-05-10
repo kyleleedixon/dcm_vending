@@ -1,4 +1,4 @@
-import { getDevices, getMachineLastSales, NayaxSale } from "@/lib/nayax";
+import { getDevices, getMachineLastSales, getMachineProducts, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
 import { getInventoryAlerts, InventoryAlert } from "@/lib/sheets";
 import { MachineCard } from "@/components/machine-card";
 import { StatsBar } from "@/components/stats-bar";
@@ -14,13 +14,6 @@ function machineCategory(name: string): "drinks" | "snacks" | null {
   return null;
 }
 
-function calcDailyRate(sales: NayaxSale[]): number {
-  if (sales.length === 0) return 0;
-  if (sales.length === 1) return 1;
-  const times = sales.map((s) => new Date(s.authorizedAt).getTime());
-  const daySpan = Math.max(1, (Math.max(...times) - Math.min(...times)) / 86400000);
-  return sales.length / daySpan;
-}
 
 export default async function DashboardPage() {
   let devices: Awaited<ReturnType<typeof getDevices>> = [];
@@ -36,20 +29,21 @@ export default async function DashboardPage() {
     devices.map(async (device) => ({
       device,
       sales: await getMachineLastSales(device.machineId),
+      products: await getMachineProducts(device.machineId),
     }))
   );
 
-  // Calculate daily transaction rates per machine category for projection
-  const dailyRates = { drinks: 0, snacks: 0 };
-  for (const { device, sales } of machineData) {
+  // Group machine products by category
+  const machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] } = { drinks: [], snacks: [] };
+  for (const { device, products } of machineData) {
     const cat = machineCategory(device.machineName);
-    if (cat) dailyRates[cat] = calcDailyRate(sales);
+    if (cat) machineProducts[cat] = products;
   }
 
   let inventoryAlerts: InventoryAlert[] = [];
   let sheetError = false;
   try {
-    inventoryAlerts = await getInventoryAlerts(dailyRates);
+    inventoryAlerts = await getInventoryAlerts(machineProducts);
   } catch {
     sheetError = true;
   }

@@ -17,18 +17,30 @@ const levelStyles = {
     badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     icon: "text-amber-500",
   },
-  info: {
-    row: "",
-    badge: "bg-muted text-muted-foreground",
-    icon: "text-muted-foreground",
-  },
 };
 
 function AlertIcon({ reason }: { reason: string }) {
   const cls = "h-3.5 w-3.5 shrink-0 mt-0.5";
-  if (reason.startsWith("Out")) return <ShoppingCart className={cls} />;
+  if (reason.startsWith("Out") || reason.startsWith("Low in machine")) return <ShoppingCart className={cls} />;
   if (reason.startsWith("Expires") || reason.startsWith("Expired")) return <Clock className={cls} />;
   return <AlertTriangle className={cls} />;
+}
+
+function StockBadge({ alert }: { alert: InventoryAlert }) {
+  const styles = levelStyles[alert.level];
+  const lines: string[] = [];
+  if (alert.machineInventory !== null && alert.machinePar !== null) {
+    lines.push(`${alert.machineInventory}/${alert.machinePar} in machine`);
+  }
+  if (alert.extraStock !== null) {
+    lines.push(`${alert.extraStock} extra`);
+  }
+  if (lines.length === 0) return null;
+  return (
+    <div className={`text-xs rounded-md px-2 py-1 font-medium shrink-0 text-right ${styles.badge}`}>
+      {lines.map((l, i) => <div key={i}>{l}</div>)}
+    </div>
+  );
 }
 
 export function InventoryAlerts({ alerts, sheetError }: InventoryAlertsProps) {
@@ -87,9 +99,7 @@ export function InventoryAlerts({ alerts, sheetError }: InventoryAlertsProps) {
                   <p className="text-xs text-muted-foreground">{alert.detail}</p>
                 )}
               </div>
-              <span className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${styles.badge}`}>
-                {alert.inventory ?? "?"} / {alert.par} par
-              </span>
+              <StockBadge alert={alert} />
             </div>
           );
         })}
