@@ -1,8 +1,7 @@
-import { getDevices, getMachineLastSales, getMachineAlerts } from "@/lib/nayax";
+import { getDevices, getMachineLastSales } from "@/lib/nayax";
 import { MachineCard } from "@/components/machine-card";
 import { StatsBar } from "@/components/stats-bar";
-import { RevenueChart, RevenueByMachine } from "@/components/revenue-chart";
-import { AlertsPanel, MachineAlerts } from "@/components/alerts-panel";
+import { RevenueChart, RevenueDayData } from "@/components/revenue-chart";
 
 export const revalidate = 60;
 
@@ -24,7 +23,6 @@ export default async function DashboardPage() {
     devices.map(async (device) => ({
       device,
       sales: await getMachineLastSales(device.machineId),
-      alerts: await getMachineAlerts(device.machineId),
     }))
   );
 
@@ -32,20 +30,21 @@ export default async function DashboardPage() {
   const currencyCode = allSales.find((s) => s.currencyCode)?.currencyCode ?? "USD";
   const onlineCount = devices.filter((d) => d.isConnected).length;
 
-  const revenueByMachine: RevenueByMachine[] = machineData.map(({ device, sales }) => {
-    const todaySales = sales.filter((s) => isToday(s.authorizedAt));
-    return {
-      name: device.machineName ?? `Machine ${device.machineId}`,
-      revenue: todaySales.reduce((sum, s) => sum + (s.settledAmount || s.authorizedAmount), 0),
-      transactions: todaySales.length,
-    };
-  });
-
-  const machineAlerts: MachineAlerts[] = machineData.map(({ device, alerts }) => ({
-    machineId: device.machineId,
-    machineName: device.machineName ?? `Machine ${device.machineId}`,
-    alerts,
-  }));
+  // Group all sales by calendar day, sorted chronologically
+  const revenueByDay: RevenueDayData[] = (() => {
+    const map = new Map<string, { revenue: number; transactions: number; ts: number }>();
+    for (const sale of allSales) {
+      const d = new Date(sale.authorizedAt);
+      const key = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const existing = map.get(key) ?? { revenue: 0, transactions: 0, ts: d.setHours(0, 0, 0, 0) };
+      existing.revenue += sale.settledAmount || sale.authorizedAmount;
+      existing.transactions += 1;
+      map.set(key, existing);
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[1].ts - b[1].ts)
+      .map(([date, { revenue, transactions }]) => ({ date, revenue, transactions }));
+  })();
 
   return (
     <div className="min-h-screen bg-background">
@@ -78,11 +77,9 @@ export default async function DashboardPage() {
               currencyCode={currencyCode}
             />
 
-            <AlertsPanel machineAlerts={machineAlerts} />
-
             <div className="rounded-lg border bg-card p-4 mb-8">
-              <h2 className="text-sm font-semibold mb-4">Revenue Today by Machine</h2>
-              <RevenueChart data={revenueByMachine} currencyCode={currencyCode} />
+              <h2 className="text-sm font-semibold mb-4">Revenue Over Time</h2>
+              <RevenueChart data={revenueByDay} currencyCode={currencyCode} />
             </div>
           </>
         )}
@@ -92,8 +89,8 @@ export default async function DashboardPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {machineData.map(({ device, sales, alerts }) => (
-            <MachineCard key={device.deviceId} device={device} sales={sales} alertCount={alerts.length} />
+          {machineData.map(({ device, sales }) => (
+            <MachineCard key={device.deviceId} device={device} sales={sales} />
           ))}
         </div>
       </main>

@@ -6,7 +6,6 @@ import { NayaxDevice, NayaxSale } from "@/lib/nayax";
 interface MachineCardProps {
   device: NayaxDevice;
   sales: NayaxSale[];
-  alertCount?: number;
 }
 
 function formatCurrency(amount: number, currency: string) {
@@ -19,7 +18,7 @@ function formatDate(iso: string) {
   });
 }
 
-export function MachineCard({ device, sales, alertCount = 0 }: MachineCardProps) {
+export function MachineCard({ device, sales }: MachineCardProps) {
   const totalToday = sales
     .filter((s) => new Date(s.authorizedAt).toDateString() === new Date().toDateString())
     .reduce((sum, s) => sum + s.settledAmount, 0);
@@ -37,16 +36,9 @@ export function MachineCard({ device, sales, alertCount = 0 }: MachineCardProps)
             Serial: {device.nayaxDeviceSerial}
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          {alertCount > 0 && (
-            <Badge variant="destructive" className="text-xs px-1.5 py-0">
-              {alertCount} alert{alertCount !== 1 ? "s" : ""}
-            </Badge>
-          )}
-          <Badge variant={device.isConnected ? "default" : "secondary"}>
-            {device.isConnected ? "Online" : "Offline"}
-          </Badge>
-        </div>
+        <Badge variant={device.isConnected ? "default" : "secondary"}>
+          {device.isConnected ? "Online" : "Offline"}
+        </Badge>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-4 mb-4">

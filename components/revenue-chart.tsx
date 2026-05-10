@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -10,14 +10,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-export interface RevenueByMachine {
-  name: string;
+export interface RevenueDayData {
+  date: string;
   revenue: number;
   transactions: number;
 }
 
 interface RevenueChartProps {
-  data: RevenueByMachine[];
+  data: RevenueDayData[];
   currencyCode: string;
 }
 
@@ -36,17 +36,19 @@ export function RevenueChart({ data, currencyCode }: RevenueChartProps) {
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+      <AreaChart data={data} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+        <defs>
+          <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="var(--color-primary, #6366f1)" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="var(--color-primary, #6366f1)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border" />
         <XAxis
-          dataKey="name"
+          dataKey="date"
           tick={{ fontSize: 11 }}
           tickLine={false}
           axisLine={false}
-          interval={0}
-          angle={data.length > 4 ? -30 : 0}
-          textAnchor={data.length > 4 ? "end" : "middle"}
-          height={data.length > 4 ? 50 : 30}
         />
         <YAxis
           tickFormatter={(v) => `$${v}`}
@@ -58,13 +60,18 @@ export function RevenueChart({ data, currencyCode }: RevenueChartProps) {
         <Tooltip
           formatter={(value) => [formatCurrency(Number(value), currencyCode), "Revenue"]}
           labelStyle={{ fontWeight: 600 }}
-          contentStyle={{
-            borderRadius: "6px",
-            fontSize: "12px",
-          }}
+          contentStyle={{ borderRadius: "6px", fontSize: "12px" }}
         />
-        <Bar dataKey="revenue" radius={[4, 4, 0, 0]} className="fill-primary" />
-      </BarChart>
+        <Area
+          type="monotone"
+          dataKey="revenue"
+          stroke="var(--color-primary, #6366f1)"
+          strokeWidth={2}
+          fill="url(#revenueGradient)"
+          dot={false}
+          activeDot={{ r: 4 }}
+        />
+      </AreaChart>
     </ResponsiveContainer>
   );
 }
