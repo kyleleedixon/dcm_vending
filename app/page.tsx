@@ -88,7 +88,7 @@ export default async function DashboardPage() {
           <p className="text-center text-muted-foreground py-16">No machines found on your account.</p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${machineData.length === 1 ? "" : machineData.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
           {machineData.map(({ device, sales }) => (
             <MachineCard key={device.deviceId} device={device} sales={sales} />
           ))}
