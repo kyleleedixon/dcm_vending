@@ -1,7 +1,9 @@
 import { getDevices, getMachineLastSales } from "@/lib/nayax";
+import { getInventoryAlerts, InventoryAlert } from "@/lib/sheets";
 import { MachineCard } from "@/components/machine-card";
 import { StatsBar } from "@/components/stats-bar";
 import { RevenueChart, RevenueDayData } from "@/components/revenue-chart";
+import { InventoryAlerts } from "@/components/inventory-alerts";
 
 export const revalidate = 60;
 
@@ -17,6 +19,13 @@ export default async function DashboardPage() {
     devices = await getDevices();
   } catch (e) {
     error = e instanceof Error ? e.message : "Failed to load machines";
+  }
+
+  let inventoryAlerts: InventoryAlert[] = [];
+  try {
+    inventoryAlerts = await getInventoryAlerts();
+  } catch {
+    // API key not yet configured — silently skip
   }
 
   const machineData = await Promise.all(
@@ -78,6 +87,8 @@ export default async function DashboardPage() {
               allSales={allSales}
               currencyCode={currencyCode}
             />
+
+            <InventoryAlerts alerts={inventoryAlerts} />
 
             <div className="rounded-lg border bg-card p-4 mb-8">
               <h2 className="text-sm font-semibold mb-4">Revenue Over Time</h2>
