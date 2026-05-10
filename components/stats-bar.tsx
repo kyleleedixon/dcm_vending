@@ -1,3 +1,5 @@
+"use client";
+
 import { NayaxSale } from "@/lib/nayax";
 
 interface StatsBarProps {
