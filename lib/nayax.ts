@@ -42,6 +42,7 @@ interface RawMachineProduct {
   MachineProductID?: number;
   MachineID?: number;
   NayaxProductID?: number | null;
+  MDBCode?: number | null;
   DEXProductName?: string | null;
   PAR?: number | null;
   MissingStockByDEX?: number | null;
@@ -58,6 +59,7 @@ interface RawOperatorProduct {
 export interface NayaxMachineProduct {
   machineProductId: number;
   productName: string;
+  mdbCode: number | null;
   machinePar: number | null;
   machineInventory: number | null;
   isVendedOut: boolean;
@@ -226,6 +228,7 @@ export async function getMachineProducts(machineId: number, productNames?: Map<n
       return {
         machineProductId: p.MachineProductID ?? 0,
         productName: name,
+        mdbCode: p.MDBCode ?? null,
         machinePar: par,
         machineInventory,
         isVendedOut: p.SelectionVendOutBit ?? false,

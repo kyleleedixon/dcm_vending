@@ -22,6 +22,7 @@ export interface InventoryAlert {
 interface ParsedItem {
   item: string;
   category: "drinks" | "snacks";
+  mdbCode: number | null;
   extraStock: number | null;
   extraStockPar: number | null;
   expiry: Date | null;
@@ -71,6 +72,7 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
   const itemCol = idx("item");
   const parCol = idx("par");
   const invCol = idx("inventory");
+  const mdbCol = idx("mdb");
   // "expiry" must match before "days to expiry" — findIndex returns first match
   const expiryCol = idx("expiry");
   const storeCol = idx("store");
@@ -81,9 +83,12 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
     const expiry = parseDate(row[expiryCol]?.trim() ?? "");
     const invRaw = row[invCol]?.trim();
     const extraStock = invRaw ? parseInt(invRaw, 10) || 0 : null;
+    const mdbRaw = mdbCol >= 0 ? row[mdbCol]?.trim() : null;
+    const mdbCode = mdbRaw ? parseInt(mdbRaw, 10) || null : null;
     return [{
       item,
       category,
+      mdbCode,
       extraStock,
       extraStockPar: parseInt(row[parCol] ?? "0", 10) || 0,
       expiry,
@@ -93,28 +98,24 @@ function parseItems(rows: string[][], category: "drinks" | "snacks"): ParsedItem
   });
 }
 
-function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
-function buildMachineProductMap(products: NayaxMachineProduct[]): Map<string, NayaxMachineProduct> {
-  const map = new Map<string, NayaxMachineProduct>();
+function buildMachineProductMapByMdb(products: NayaxMachineProduct[]): Map<number, NayaxMachineProduct> {
+  const map = new Map<number, NayaxMachineProduct>();
   for (const p of products) {
-    map.set(normalizeName(p.productName), p);
+    if (p.mdbCode != null) map.set(p.mdbCode, p);
   }
   return map;
 }
 
 function buildAlerts(
   items: ParsedItem[],
-  machineProductMap: Map<string, NayaxMachineProduct>,
+  machineProductMap: Map<number, NayaxMachineProduct>,
   dailyRate: number
 ): InventoryAlert[] {
   const ratePerItem = items.length > 0 && dailyRate > 0 ? dailyRate / items.length : 0;
   const alerts: InventoryAlert[] = [];
 
   for (const item of items) {
-    const machineProduct = machineProductMap.get(normalizeName(item.item));
+    const machineProduct = item.mdbCode != null ? machineProductMap.get(item.mdbCode) : undefined;
     const machineInventory = machineProduct?.machineInventory ?? null;
     const machinePar = machineProduct?.machinePar ?? null;
     const isVendedOut = machineProduct?.isVendedOut ?? false;
@@ -276,8 +277,8 @@ export async function getInventoryAlerts(
   const drinks = parseItems(drinkRows, "drinks");
   const snacks = parseItems(snackRows, "snacks");
 
-  const drinkMap = buildMachineProductMap(machineProducts.drinks);
-  const snackMap = buildMachineProductMap(machineProducts.snacks);
+  const drinkMap = buildMachineProductMapByMdb(machineProducts.drinks);
+  const snackMap = buildMachineProductMapByMdb(machineProducts.snacks);
 
   return [
     ...buildAlerts(drinks, drinkMap, dailyRates.drinks),
