@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { GlassWater, Cookie } from "lucide-react";
-import { NayaxDevice, NayaxSale } from "@/lib/nayax";
+import { NayaxDevice, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
 
 function MachineIcon({ name }: { name: string }) {
   if (/\b13\b/.test(name)) return <GlassWater className="h-4 w-4 text-blue-400 shrink-0" />;
@@ -15,6 +15,7 @@ function MachineIcon({ name }: { name: string }) {
 interface MachineCardProps {
   device: NayaxDevice;
   sales: NayaxSale[];
+  products: NayaxMachineProduct[];
 }
 
 function formatCurrency(amount: number, currency: string) {
@@ -27,12 +28,30 @@ function formatDate(iso: string) {
   });
 }
 
-export function MachineCard({ device, sales }: MachineCardProps) {
+function buildSalesCounts(sales: NayaxSale[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const s of sales) {
+    if (!s.productName) continue;
+    map.set(s.productName, (map.get(s.productName) ?? 0) + (s.quantity ?? 1));
+  }
+  return map;
+}
+
+export function MachineCard({ device, sales, products }: MachineCardProps) {
   const totalToday = sales
     .filter((s) => new Date(s.authorizedAt).toDateString() === new Date().toDateString())
     .reduce((sum, s) => sum + s.settledAmount, 0);
 
   const lastSale = sales[0];
+
+  const salesCounts = buildSalesCounts(sales);
+  const topSellers = [...salesCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const slowMovers = products
+    .map((p) => ({ name: p.productName, count: salesCounts.get(p.productName) ?? 0 }))
+    .sort((a, b) => a.count - b.count)
+    .slice(0, 5);
 
   return (
     <Card>
@@ -98,6 +117,37 @@ export function MachineCard({ device, sales }: MachineCardProps) {
 
         {sales.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">No recent sales</p>
+        )}
+
+        {(topSellers.length > 0 || slowMovers.length > 0) && (
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            {topSellers.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Top Sellers</p>
+                <ol className="space-y-1">
+                  {topSellers.map(([name, count]) => (
+                    <li key={name} className="flex justify-between text-xs">
+                      <span className="truncate pr-2">{name}</span>
+                      <span className="text-muted-foreground shrink-0">{count}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {slowMovers.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Slow Movers</p>
+                <ol className="space-y-1">
+                  {slowMovers.map(({ name, count }) => (
+                    <li key={name} className="flex justify-between text-xs">
+                      <span className="truncate pr-2">{name}</span>
+                      <span className="text-muted-foreground shrink-0">{count}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

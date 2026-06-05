@@ -135,8 +135,8 @@ export default async function DashboardPage() {
         )}
 
         <div className={`grid grid-cols-1 gap-6 ${machineData.length === 1 ? "" : machineData.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3"}`}>
-          {machineData.map(({ device, sales }) => (
-            <MachineCard key={device.deviceId} device={device} sales={sales} />
+          {machineData.map(({ device, sales, products }) => (
+            <MachineCard key={device.deviceId} device={device} sales={sales} products={products} />
           ))}
         </div>
       </main>
