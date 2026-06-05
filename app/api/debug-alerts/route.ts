@@ -1,4 +1,4 @@
-import { getDevices, getMachineProducts, NayaxMachineProduct } from "@/lib/nayax";
+import { getDevices, getMachineProducts, getOperatorProducts, NayaxMachineProduct } from "@/lib/nayax";
 
 const SHEET_ID = "1Rmyu2g1DoCt2IlX9fYrQzOHVXz0ZAn3_2YdTIkMW5hg";
 
@@ -63,9 +63,26 @@ export async function GET() {
   const devices = await getDevices();
   const machineProducts: { drinks: NayaxMachineProduct[]; snacks: NayaxMachineProduct[] } = { drinks: [], snacks: [] };
 
+  const actorId = devices[0]?.actorId;
+  const productNames = actorId ? await getOperatorProducts(actorId) : new Map<number, string>();
+
   for (const device of devices) {
     const cat = machineCategory(device.machineName);
-    if (cat) machineProducts[cat] = await getMachineProducts(device.machineId);
+    if (cat) machineProducts[cat] = await getMachineProducts(device.machineId, productNames);
+  }
+
+  // Raw operator products for diagnosis
+  let operatorProductsRaw: unknown = null;
+  if (actorId) {
+    const token = process.env.NAYAX_API_TOKEN?.trim();
+    const res = await fetch(`https://lynx.nayax.com/operational/v1/operators/${actorId}/products`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    const body = await res.text();
+    let parsed = null;
+    try { parsed = JSON.parse(body); } catch { /* ignore */ }
+    operatorProductsRaw = { status: res.status, count: Array.isArray(parsed) ? parsed.length : null, first: Array.isArray(parsed) ? parsed[0] : parsed };
   }
 
   // Raw Nayax responses for diagnosis
@@ -113,6 +130,7 @@ export async function GET() {
 
   return Response.json({
     expiredItems,
+    operatorProductsRaw,
     nayaxRaw,
     devices: devices.map((d) => ({ name: d.machineName, id: d.machineId, category: machineCategory(d.machineName) })),
     nayaxProducts: {
