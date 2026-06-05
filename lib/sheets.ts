@@ -144,8 +144,8 @@ function buildAlerts(
       continue;
     }
 
-    // Machine slot vended out (empty in machine)
-    if (isVendedOut || machineInventory === 0) {
+    // Machine slot empty — only trust MDB inventory count, not the vend-out bit alone
+    if (machineInventory === 0) {
       alerts.push({ ...base, level: "critical", reason: "Out of stock in machine" });
       continue;
     }
