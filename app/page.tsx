@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDevices, getMachineLastSales, getMachineProducts, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
+import { getDevices, getMachineLastSales, getMachineProducts, getOperatorProducts, NayaxMachineProduct, NayaxSale } from "@/lib/nayax";
 
 function calcDailyRate(sales: NayaxSale[]): number {
   if (sales.length === 0) return 0;
@@ -34,11 +34,14 @@ export default async function DashboardPage() {
     error = e instanceof Error ? e.message : "Failed to load machines";
   }
 
+  const actorId = devices[0]?.actorId;
+  const productNames = actorId ? await getOperatorProducts(actorId) : new Map<number, string>();
+
   const machineData = await Promise.all(
     devices.map(async (device) => ({
       device,
       sales: await getMachineLastSales(device.machineId),
-      products: await getMachineProducts(device.machineId),
+      products: await getMachineProducts(device.machineId, productNames),
     }))
   );
 

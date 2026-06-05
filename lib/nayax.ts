@@ -41,12 +41,18 @@ interface RawSale {
 interface RawMachineProduct {
   MachineProductID?: number;
   MachineID?: number;
+  NayaxProductID?: number | null;
   DEXProductName?: string | null;
   PAR?: number | null;
   MissingStockByDEX?: number | null;
   MissingStockByMDB?: number | null;
   SelectionVendOutBit?: boolean | null;
   VendOutAlertThreshold?: number | null;
+}
+
+interface RawOperatorProduct {
+  NayaxProductID?: number | null;
+  ProductName?: string | null;
 }
 
 export interface NayaxMachineProduct {
@@ -183,7 +189,24 @@ export async function getMachineAlerts(machineId: number): Promise<NayaxAlert[]>
   return items.map(mapAlert);
 }
 
-export async function getMachineProducts(machineId: number): Promise<NayaxMachineProduct[]> {
+export async function getOperatorProducts(actorId: number): Promise<Map<number, string>> {
+  const res = await fetch(
+    `${LYNX_BASE}/operators/${actorId}/products`,
+    { headers: getHeaders(), next: { revalidate: 300 } }
+  );
+  if (!res.ok) return new Map();
+  const data = await res.json();
+  const items: RawOperatorProduct[] = Array.isArray(data) ? data : [];
+  const map = new Map<number, string>();
+  for (const p of items) {
+    if (p.NayaxProductID != null && p.ProductName) {
+      map.set(p.NayaxProductID, p.ProductName);
+    }
+  }
+  return map;
+}
+
+export async function getMachineProducts(machineId: number, productNames?: Map<number, string>): Promise<NayaxMachineProduct[]> {
   const res = await fetch(
     `${LYNX_BASE}/machines/${machineId}/machineProducts`,
     { headers: getHeaders(), next: { revalidate: 300 } }
@@ -192,18 +215,22 @@ export async function getMachineProducts(machineId: number): Promise<NayaxMachin
   const data = await res.json();
   const items: RawMachineProduct[] = Array.isArray(data) ? data : [];
   return items
-    .filter((p) => p.DEXProductName)
     .map((p) => {
+      const name = p.DEXProductName
+        ?? (p.NayaxProductID != null ? productNames?.get(p.NayaxProductID) : null)
+        ?? null;
+      if (!name) return null;
       const par = p.PAR ?? null;
       const missing = p.MissingStockByDEX ?? p.MissingStockByMDB ?? null;
       const machineInventory = par !== null && missing !== null ? par - missing : null;
       return {
         machineProductId: p.MachineProductID ?? 0,
-        productName: p.DEXProductName!,
+        productName: name,
         machinePar: par,
         machineInventory,
         isVendedOut: p.SelectionVendOutBit ?? false,
         vendOutThreshold: p.VendOutAlertThreshold ?? null,
       };
-    });
+    })
+    .filter((p): p is NayaxMachineProduct => p !== null);
 }
