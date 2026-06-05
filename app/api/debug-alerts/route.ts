@@ -77,7 +77,9 @@ export async function GET() {
       cache: "no-store",
     });
     const body = await res.text();
-    nayaxRaw[device.machineName] = { status: res.status, body: body.substring(0, 500) };
+    let firstProduct = null;
+    try { const arr = JSON.parse(body); firstProduct = arr[0] ?? null; } catch { /* ignore */ }
+    nayaxRaw[device.machineName] = { status: res.status, firstProduct };
   }
 
   const drinkMap = new Map(machineProducts.drinks.map((p) => [normalizeName(p.productName), p]));
