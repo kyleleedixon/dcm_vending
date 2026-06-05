@@ -68,6 +68,18 @@ export async function GET() {
     if (cat) machineProducts[cat] = await getMachineProducts(device.machineId);
   }
 
+  // Raw Nayax responses for diagnosis
+  const nayaxRaw: Record<string, unknown> = {};
+  for (const device of devices) {
+    const token = process.env.NAYAX_API_TOKEN?.trim();
+    const res = await fetch(`https://lynx.nayax.com/operational/v1/machines/${device.machineId}/machineProducts`, {
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    const body = await res.text();
+    nayaxRaw[device.machineName] = { status: res.status, body: body.substring(0, 500) };
+  }
+
   const drinkMap = new Map(machineProducts.drinks.map((p) => [normalizeName(p.productName), p]));
   const snackMap = new Map(machineProducts.snacks.map((p) => [normalizeName(p.productName), p]));
 
@@ -99,6 +111,7 @@ export async function GET() {
 
   return Response.json({
     expiredItems,
+    nayaxRaw,
     devices: devices.map((d) => ({ name: d.machineName, id: d.machineId, category: machineCategory(d.machineName) })),
     nayaxProducts: {
       drinks: machineProducts.drinks.map((p) => ({ name: p.productName, normalized: normalizeName(p.productName), inventory: p.machineInventory, par: p.machinePar, isVendedOut: p.isVendedOut })),
