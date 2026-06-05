@@ -134,8 +134,9 @@ function buildAlerts(
       extraStockPar,
     };
 
-    // Already expired
+    // Already expired — skip if machine inventory is zero (item already removed)
     if (daysToExpiry !== null && daysToExpiry < 0) {
+      if (machineInventory === 0 || isVendedOut) continue;
       alerts.push({ ...base, level: "critical", reason: "Expired — remove from machine" });
       continue;
     }
