@@ -99,6 +99,7 @@ export async function GET() {
 
   return Response.json({
     expiredItems,
+    devices: devices.map((d) => ({ name: d.machineName, id: d.machineId, category: machineCategory(d.machineName) })),
     nayaxProducts: {
       drinks: machineProducts.drinks.map((p) => ({ name: p.productName, normalized: normalizeName(p.productName), inventory: p.machineInventory, par: p.machinePar, isVendedOut: p.isVendedOut })),
       snacks: machineProducts.snacks.map((p) => ({ name: p.productName, normalized: normalizeName(p.productName), inventory: p.machineInventory, par: p.machinePar, isVendedOut: p.isVendedOut })),
