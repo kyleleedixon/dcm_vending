@@ -223,7 +223,7 @@ export async function getMachineProducts(machineId: number, productNames?: Map<n
         ?? null;
       if (!name) return null;
       const par = p.PAR ?? null;
-      const missing = p.MissingStockByDEX ?? p.MissingStockByMDB ?? null;
+      const missing = p.MissingStockByMDB ?? p.MissingStockByDEX ?? null;
       const machineInventory = par !== null && missing !== null ? par - missing : null;
       return {
         machineProductId: p.MachineProductID ?? 0,
