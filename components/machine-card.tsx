@@ -44,7 +44,18 @@ export function MachineCard({ device, sales, products }: MachineCardProps) {
 
   const lastSale = sales[0];
 
-  const salesCounts = buildSalesCounts(sales);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const recentSales = sales.filter((s) => new Date(s.authorizedAt) >= cutoff);
+
+  const oldestSale = recentSales.length > 0
+    ? new Date(Math.min(...recentSales.map((s) => new Date(s.authorizedAt).getTime())))
+    : null;
+  const salesWindowLabel = oldestSale
+    ? `Last ${Math.round((Date.now() - oldestSale.getTime()) / 86400000)}d`
+    : null;
+
+  const salesCounts = buildSalesCounts(recentSales);
   const topSellers = [...salesCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
@@ -123,7 +134,9 @@ export function MachineCard({ device, sales, products }: MachineCardProps) {
           <div className="grid grid-cols-2 gap-4 mt-4">
             {topSellers.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Top Sellers</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Top Sellers{salesWindowLabel ? ` (${salesWindowLabel})` : ""}
+                </p>
                 <ol className="space-y-1">
                   {topSellers.map(([name, count]) => (
                     <li key={name} className="flex justify-between text-xs">
@@ -136,7 +149,9 @@ export function MachineCard({ device, sales, products }: MachineCardProps) {
             )}
             {slowMovers.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Slow Movers</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Slow Movers{salesWindowLabel ? ` (${salesWindowLabel})` : ""}
+                </p>
                 <ol className="space-y-1">
                   {slowMovers.map(({ name, count }) => (
                     <li key={name} className="flex justify-between text-xs">
