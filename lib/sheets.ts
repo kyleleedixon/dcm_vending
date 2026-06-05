@@ -134,12 +134,12 @@ function buildAlerts(
       extraStockPar,
     };
 
-    // Already expired
+    // Already expired — only say "remove from machine" if Nayax confirms item is still there
     if (daysToExpiry !== null && daysToExpiry < 0) {
-      if (machineInventory === 0 || isVendedOut) {
-        alerts.push({ ...base, level: "critical", reason: "Expired — re-order needed" });
-      } else {
+      if (machineInventory !== null && machineInventory > 0 && !isVendedOut) {
         alerts.push({ ...base, level: "critical", reason: "Expired — remove from machine" });
+      } else {
+        alerts.push({ ...base, level: "critical", reason: "Expired — re-order needed" });
       }
       continue;
     }
